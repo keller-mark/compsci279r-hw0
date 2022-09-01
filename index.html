@@ -16,8 +16,10 @@
   <body>
     <!-- Use the largest heading for the app title. -->
     <h1>To-Dos</h1>
-    <!-- Add an empty DOM element for potentially showing error messages. -->
-    <div id="status"></div>
+    <!-- Add an empty DOM element for showing error messages. -->
+    <div id="error"></div>
+    <!-- Add an empty DOM element for showing the list completion progress. -->
+    <h3 id="status"></h3>
     <!-- Add a container for top-level buttons. -->
     <div id="menu">
       <!-- Add a button to clear all todos from the list. -->
@@ -33,10 +35,24 @@
         <form method="dialog">
           <p>Are you sure you want to clear all tasks?</p>
           <button id="menu-clear-cancel" value="cancel">Cancel</button>
-          <button id="menu-clear-confirm" value="default">Confirm</button>
+          <button id="menu-clear-confirm" value="default" type="submit">Confirm</button>
         </form>
       </dialog>
     </div>
+    <!-- Use the dialog element to show a confirmation popup. -->
+    <dialog id="edit-dialog">
+      <!--
+        Use the method="dialog" so that:
+        - form submission triggers the dialog's close event
+        - form results are saved to the returnValue of the dialog element.
+        Reference: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dialog#examples
+      -->
+      <form method="dialog" id="edit-form">
+        <p>Edit task</p>
+        <input type="text" id="edit-input" />
+        <button id="edit-save" value="default" type="submit">Save</button>
+      </form>
+    </dialog>
     <!-- Add an empty DOM element for rendering the task list. -->
     <ul id="list"></ul>
     <!-- Add a form with an input for the user to add a new task to the list. -->
@@ -47,11 +63,11 @@
       <button id="new-save" role="submit">Add task</button>
     </form>
     <script type="text/javascript">
-      function toItem(value, checked, created) {
+      function toItem(value, created, isChecked) {
         // Create a new task item object.
         // Using this function prevents
         // accidentally including any additional key/value pairs.
-        return { value, checked, created };
+        return { value, created, isChecked };
       }
       function getObjectStore(db, readwrite) {
         // Get the "items" object store (think of like a database table)
@@ -87,72 +103,178 @@
         // existing primary key.
         // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/put
         const request = objectStore.put(newItem, primaryKey);
-          request.onerror = (event) => {
-            // Show the error in the status DOM element.
-            renderError("Error: unable to update item.");
-            // Log the event to the console for debugging purposes.
-            console.log(newItem, event);
-          };
-          request.onsuccess = (event) => {
-            // We need to refresh the to-do list interface
-            // so that an new list is rendered,
-            // with the updated task item included.
-            refreshItems(db);
-          };
+        request.onerror = (event) => {
+          // Show the error in the status DOM element.
+          renderError("Error: unable to update item.");
+          // Log the event to the console for debugging purposes.
+          console.log(event);
+        };
+        request.onsuccess = (event) => {
+          // We need to refresh the to-do list interface
+          // so that an new list is rendered,
+          // with the updated task item included.
+          refreshItems(db);
+        };
+      }
+      function deleteItem(db, primaryKey) {
+        const objectStore = getObjectStore(db, true);
+        // Delete the existing task in the database
+        // by passing its primary key.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/delete
+        const request = objectStore.delete(primaryKey);
+        request.onerror = (event) => {
+          // Show the error in the status DOM element.
+          renderError("Error: unable to update item.");
+          // Log the event to the console for debugging purposes.
+          console.log(event);
+        };
+        request.onsuccess = (event) => {
+          // We need to refresh the to-do list interface
+          // so that an new list is rendered,
+          // with the deleted task item removed.
+          refreshItems(db);
+        };
+      }
+      function renderStatus(numChecked, numUnchecked) {
+        // Render the current progress (number of tasks completed/remaining).
+        const statusEl = document.getElementById("status");
+        // Pluralize the words.
+        statusEl.textContent = `${numChecked} task${(numChecked === 1 ? '' : 's')} completed, ${numUnchecked} task${(numUnchecked === 1 ? '' : 's')} remain${(numUnchecked === 1 ? 's' : '')}`;
       }
       function renderItems(db, items) {
         // Clear the existing list elements.
         const listEl = document.getElementById("list");
         listEl.innerHTML = null;
-        // Render the refreshed list items.
+        // Render the refreshed list items
+        // by iterating over the array of task objects.
         items.forEach(item => {
+          // For each list item,
+          // create an <li> which contains:
+          // - checkbox input
+          // - text label
+          // - edit/delete buttons.
           const itemEl = document.createElement("li");
           const checkEl = document.createElement("input");
-          const textEl = document.createElement("label");
-
+          const textLabelEl = document.createElement("label");
+          const editButtonEl = document.createElement("button");
+          const deleteButtonEl = document.createElement("button");
+          
+          // Set the ID of the checkbox element, so that we can match
+          // to the corresponding label element using the "for" attribute.
           checkEl.setAttribute("id", item.primaryKey);
+          // Change from the default "text" input type to the checkbox input type.
           checkEl.setAttribute("type", "checkbox");
-          if(item.checked) {
+          if(item.isChecked) {
+            // Set the value of the checkbox to "true" if the task
+            // has already been marked as completed.
             checkEl.setAttribute("checked", "true");
-            textEl.style.textDecoration = "line-through";
+            // Change the text style to strikethrough.
+            textLabelEl.style.textDecoration = "line-through";
           }
+          // Register an on change listener to save the checked/unchecked status
+          // in the database.
           checkEl.addEventListener("change", event => {
-            updateItem(db, item.primaryKey, toItem(item.value, event.target.checked, item.created))
+            // The checkbox value changed, so save the new value to the database
+            // and refresh the list.
+            updateItem(db, item.primaryKey, toItem(item.value, item.created, event.target.checked));
+          });
+
+          // Set up the text label.
+          textLabelEl.textContent = item.value;
+          // Add the "for" attribute so that clicking the text
+          // triggers the matching checkbox's change event.
+          textLabelEl.setAttribute("for", item.primaryKey);
+          // Add a title attribute so that hovering the text
+          // displays the creation date/time in a tooltip.
+          textLabelEl.setAttribute("title", `Created ${item.created.toString()}`);
+          
+          // Set up the edit button.
+          editButtonEl.textContent = "Edit";
+          // Register the on edit click handler.
+          editButtonEl.addEventListener("click", event => {
+            const dialogEl = document.getElementById("edit-dialog");
+            const editInputEl = document.getElementById("edit-input");
+            // Fill in the value of the edit dialog's text input
+            // with the current task text.
+            editInputEl.value = item.value;
+            // Register a global on edit task handler,
+            // since the dialog is also global, to avoid
+            // the need to call addEventListener
+            // on the dialog element multiple times.
+            // This handler will be called when the edit dialog
+            // has been closed.
+            window.onedittask = () => {
+              // Get the new value of the input element,
+              // and save the updated task object to the database.
+              updateItem(db, item.primaryKey, toItem(editInputEl.value, item.created, item.isChecked))
+            };
+            // Show the edit modal.
+            dialogEl.showModal();
           });
           
-          textEl.setAttribute("for", item.primaryKey);
-          textEl.textContent = item.value;
-          textEl.setAttribute("title", `Created ${item.created.toString()}`);
+          // Set up the delete button.
+          deleteButtonEl.textContent = "Delete";
+          // Register the on delete click handler.
+          deleteButtonEl.addEventListener("click", event => {
+            // Delete this task in the database.
+            deleteItem(db, item.primaryKey)
+          });
+          
+          // Append the elements as children
+          // of the <li> element.
           itemEl.appendChild(checkEl);
-          itemEl.appendChild(textEl);
+          itemEl.appendChild(textLabelEl);
+          itemEl.appendChild(editButtonEl);
+          itemEl.appendChild(deleteButtonEl);
+          // Append the <li> element to the parent <ul> element.
           listEl.appendChild(itemEl);
         });
+        // Render the progress message.
+        renderStatus(
+          items.filter(item => item.isChecked).length,
+          items.filter(item => !item.isChecked).length,
+        );
       }
       function refreshItems(db) {
+        // Set up an empty array in which
+        // to store the list of task items.
         const items = [];
-
         const objectStore = getObjectStore(db, false);
-        objectStore.openCursor().onsuccess = (event) => {
+        // Get a new cursor scoped to the object store.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB#using_a_cursor
+        const request = objectStore.openCursor();
+        request.onsuccess = (event) => {
           const cursor = event.target.result;
           if (cursor) {
-            items.push({ ...cursor.value, primaryKey: cursor.primaryKey })
+            // If the cursor is currently pointing to an item,
+            // append it to the items array with its primary key.
+            items.push({ ...cursor.value, primaryKey: cursor.primaryKey });
+            // Advance the cursor, triggering a subsequent call of this handler function. 
+            // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor/continue
             cursor.continue();
           } else {
-            // Got all items
+            // If the cursor is not currently pointing to an item,
+            // then we can assume that we have iterated over all of the items.
             renderItems(db, items);
           }
         };
       }
       function addItem(db, item) {
         const objectStore = getObjectStore(db, true);
-        
+        // Use the add method to create a new
+        // item in the object store.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/add
         const request = objectStore.add(item);
         request.onsuccess = event => {
+          // Refresh the list since,
+          // including the new item in the re-render.
           refreshItems(db);
         };
       }
       function renderError(message) {
-        document.getElementById("status").innerHTML = message;
+        // When an error occurs, we want to render
+        // a message in a DOM element.
+        document.getElementById("error").innerHTML = message;
       }
       // Run the following code after the page has loaded,
       // to ensure that the DOM elements and the IndexedDB
@@ -175,35 +297,67 @@
         };
         request.onupgradeneeded = event => {
           const db = event.target.result;
+          // Create the "items" object store (think of as a database table).
+          // We are using auto-incrementing keys as the primary keys,
+          // since the text value is subject to change.
           const objectStore = db.createObjectStore("items", { autoIncrement: true });
         };
         request.onsuccess = event => {
           const db = event.target.result;
+          // This is the first time the database has been opened,
+          // so get the task items and render them.
           refreshItems(db);
 
-          document.getElementById("new").addEventListener("submit", (event) => {
+          // Register the new task form submission listener. 
+          const newTaskFormEl = document.getElementById("new");
+          newTaskFormEl.addEventListener("submit", (event) => {
             // Prevent the default behavior of the HTML form element,
             // which is to append query parameters via GET or POST request,
             // causing an unnecessary page refresh.
             event.preventDefault();
             const inputEl = document.getElementById("new-input");
-            const newTask = toItem(inputEl.value, false, new Date());
+            // Create a new task object with the
+            // current value of the new task text input element.
+            const newTask = toItem(inputEl.value, new Date(), false);
+            // Save the new task to the database and refresh the list.
             addItem(db, newTask);
             // Clear the text from the input element.
             inputEl.value = "";
           });
-          document.getElementById("menu-clear").addEventListener("click", (event) => {
+
+          // Register the clear all button click listener.
+          const clearAllButtonEl = document.getElementById("menu-clear");
+          clearAllButtonEl.addEventListener("click", (event) => {
             const dialogEl = document.getElementById("menu-clear-dialog");
+            // Register the dialog close handler,
+            // which will either result in:
+            // - cancel (do nothing)
+            // - default (confirmed).
             dialogEl.addEventListener('close', () => {
               if(dialogEl.returnValue === "default") {
+                // Clear all items and refresh the list.
                 clearAllItems(db);
               }
             });
+            // Show the confirmation dialog.
             dialogEl.showModal();
           });
-        };
 
-        
+          // Register the global edit dialog close listener.
+          // We are doing this once because it is easier to register one
+          // close listener rather than add and remove individual ones each
+          // time each edit button is pressed.
+          const editDialogEl = document.getElementById("edit-dialog");
+          editDialogEl.addEventListener("close", () => {
+            console.log(editDialogEl.returnValue);
+            if(editDialogEl.returnValue === "default") {
+              // If the dialog has been opened,
+              // then the global on edit task handler
+              // must have been registered on the window object.
+              window.onedittask();
+            }
+          });
+        };
       };
     </script>
   </body>
