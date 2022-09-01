@@ -1,19 +1,35 @@
 <!DOCTYPE html>
   <head>
+    <!-- Set the page title that is shown in the browser window/tab/history. -->
     <title>To-Do App</title>
+    <!-- Use custom CSS rules to style elements. -->
     <style>
+      /* Style the list of todos */
       #list {
+        /* Hide the bullets which are shown for unordered lists by default */
         list-style-type: none;
+        /* Remove the default left-padding of unordered lists */
         padding-left: 0;
       }
     </style>
   </head>
   <body>
+    <!-- Use the largest heading for the app title. -->
     <h1>To-Dos</h1>
+    <!-- Add an empty DOM element for potentially showing error messages. -->
     <div id="status"></div>
+    <!-- Add a container for top-level buttons. -->
     <div id="menu">
+      <!-- Add a button to clear all todos from the list. -->
       <button id="menu-clear">Clear all tasks</button>
+      <!-- Use the dialog element to show a confirmation popup. -->
       <dialog id="menu-clear-dialog">
+        <!--
+          Use the method="dialog" so that:
+          - form submission triggers the dialog's close event
+          - form results are saved to the returnValue of the dialog element.
+          Reference: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dialog#examples
+        -->
         <form method="dialog">
           <p>Are you sure you want to clear all tasks?</p>
           <button id="menu-clear-cancel" value="cancel">Cancel</button>
@@ -21,35 +37,66 @@
         </form>
       </dialog>
     </div>
-    <ul id="list">
-      
-    </ul>
-    <div id="new">
-      <input id="new-input" type="text" placeholder="Walk cat" />
-      <button id="new-save">Add task</button>
-    </div>
+    <!-- Add an empty DOM element for rendering the task list. -->
+    <ul id="list"></ul>
+    <!-- Add a form with an input for the user to add a new task to the list. -->
+    <form id="new">
+      <!-- Add a text input so that the user can write the task contents. -->
+      <input id="new-input" type="text" placeholder="Walk cat" name="task" />
+      <!-- Add a submit button so that the form submits upon button click or by pressing enter in the input above. -->
+      <button id="new-save" role="submit">Add task</button>
+    </form>
     <script type="text/javascript">
       function toItem(value, checked, created) {
+        // Create a new task item object.
+        // Using this function prevents
+        // accidentally including any additional key/value pairs.
         return { value, checked, created };
       }
+      function getObjectStore(db, readwrite) {
+        // Get the "items" object store (think of like a database table)
+        // that holds the to-do list tasks in the browser memory.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/transaction
+        return db
+          // To do this, we need to create a new transaction that is
+          // scoped to the "items" object store.
+          .transaction("items", (readwrite ? "readwrite" : "readonly"))
+          // We then need to obtain the object store of interest from the transaction instance
+          // (because in theory a transaction can contain more than one object store in its scope
+          // e.g., by passing an array as the first argument above).
+          // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction/objectStore
+          .objectStore("items");
+      }
       function clearAllItems(db) {
-        const objectStore = db.transaction(["items"], "readwrite").objectStore("items");
+        const objectStore = getObjectStore(db, true);
+        // Run the clear method to delete all tasks
+        // from the to-do list object store.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/clear
         const request = objectStore.clear();
         request.onsuccess = event => {
+          // We need to refresh the to-do list interface
+          // so that an empty list is rendered,
+          // replacing the existing list.
           refreshItems(db);
         };
       }
       function updateItem(db, primaryKey, newItem) {
-        console.log(newItem);
-        const objectStore = db.transaction(["items"], "readwrite").objectStore("items");
+        const objectStore = getObjectStore(db, true);
+        // Update the existing task in the database
+        // by passing a new item object alongside its
+        // existing primary key.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/put
         const request = objectStore.put(newItem, primaryKey);
           request.onerror = (event) => {
-            // Do something with the error
+            // Show the error in the status DOM element.
             renderError("Error: unable to update item.");
+            // Log the event to the console for debugging purposes.
             console.log(newItem, event);
           };
           request.onsuccess = (event) => {
-            // Success - the data is updated!
+            // We need to refresh the to-do list interface
+            // so that an new list is rendered,
+            // with the updated task item included.
             refreshItems(db);
           };
       }
@@ -84,9 +131,7 @@
       function refreshItems(db) {
         const items = [];
 
-        const objectStore = db
-          .transaction("items")
-          .objectStore("items");
+        const objectStore = getObjectStore(db, false);
         objectStore.openCursor().onsuccess = (event) => {
           const cursor = event.target.result;
           if (cursor) {
@@ -99,9 +144,7 @@
         };
       }
       function addItem(db, item) {
-        const objectStore = db
-          .transaction("items", "readwrite")
-          .objectStore("items");
+        const objectStore = getObjectStore(db, true);
         
         const request = objectStore.add(item);
         request.onsuccess = event => {
@@ -111,12 +154,21 @@
       function renderError(message) {
         document.getElementById("status").innerHTML = message;
       }
+      // Run the following code after the page has loaded,
+      // to ensure that the DOM elements and the IndexedDB
+      // are ready to be accessed.
+      // Reference: https://developer.mozilla.org/en-US/docs/Web/API/Window/load_event
       window.onload = () => {
-        // IndexedDB allows persistent storage of values in the browser.
-        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB
-        // Open a database.
+        // IndexedDB allows persistent storage of data in the browser.
+        // We can create or open a new database with a particular version.
+        // The version number is used to understand when to trigger
+        // the "onupgradeneeded" event.
+        // References:
+        // - https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB
+        // - https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory/open
         const request = indexedDB.open("todo-db", 5);
-        // Handle database errors.
+        // The database open request is special because many different events are fired.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest#events
         request.onerror = event => {
           renderError("Error: unable to load saved tasks.");
           console.log(event);
@@ -129,12 +181,15 @@
           const db = event.target.result;
           refreshItems(db);
 
-          document.getElementById("new-save").addEventListener("click", (event) => {
+          document.getElementById("new").addEventListener("submit", (event) => {
+            // Prevent the default behavior of the HTML form element,
+            // which is to append query parameters via GET or POST request,
+            // causing an unnecessary page refresh.
+            event.preventDefault();
             const inputEl = document.getElementById("new-input");
             const newTask = toItem(inputEl.value, false, new Date());
             addItem(db, newTask);
-            
-            // Clear input element.
+            // Clear the text from the input element.
             inputEl.value = "";
           });
           document.getElementById("menu-clear").addEventListener("click", (event) => {
