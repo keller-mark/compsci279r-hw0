@@ -2,20 +2,45 @@
   <head>
     <!-- Set the page title that is shown in the browser window/tab/history. -->
     <title>To-Do App</title>
-    <!-- Use custom CSS rules to style elements. -->
     <style>
-      /* Style the list of todos */
+      /* Use custom CSS rules to style elements. */
+      html {
+        /* Use the default apple operating system font */
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      }
+      #title {
+        margin: 0;
+        display: inline-block;
+      }
+      #status {
+        margin: 0;
+        display: inline-block;
+      }
+      #menu {
+        display: inline-block;
+        margin-left: 10px;
+      }
       #list {
         /* Hide the bullets which are shown for unordered lists by default */
         list-style-type: none;
         /* Remove the default left-padding of unordered lists */
         padding-left: 0;
       }
+      #list > li {
+        margin-top: 5px;
+      }
+      #list > li > button {
+        margin-left: 5px;
+        visibility: hidden;
+      }
+      #list > li:hover > button {
+        visibility: visible;
+      }
     </style>
   </head>
   <body>
     <!-- Use the largest heading for the app title. -->
-    <h1>To-Dos</h1>
+    <h1 id="title">To-Dos</h1>
     <!-- Add an empty DOM element for showing error messages. -->
     <div id="error"></div>
     <!-- Add an empty DOM element for showing the list completion progress. -->
