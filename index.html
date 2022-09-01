@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+  <head>
+    <title>To-Do App</title>
+    <style>
+      #list {
+        list-style-type: none;
+        padding-left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>To-Dos</h1>
+    <div id="status"></div>
+    <div id="menu">
+      <button id="menu-clear">Clear all tasks</button>
+      <dialog id="menu-clear-dialog">
+        <form method="dialog">
+          <p>Are you sure you want to clear all tasks?</p>
+          <button id="menu-clear-cancel" value="cancel">Cancel</button>
+          <button id="menu-clear-confirm" value="default">Confirm</button>
+        </form>
+      </dialog>
+    </div>
+    <ul id="list">
+      
+    </ul>
+    <div id="new">
+      <input id="new-input" type="text" placeholder="Walk cat" />
+      <button id="new-save">Add task</button>
+    </div>
+    <script type="text/javascript">
+      function toItem(value, checked, created) {
+        return { value, checked, created };
+      }
+      function clearAllItems(db) {
+        const objectStore = db.transaction(["items"], "readwrite").objectStore("items");
+        const request = objectStore.clear();
+        request.onsuccess = event => {
+          refreshItems(db);
+        };
+      }
+      function updateItem(db, primaryKey, newItem) {
+        console.log(newItem);
+        const objectStore = db.transaction(["items"], "readwrite").objectStore("items");
+        const request = objectStore.put(newItem, primaryKey);
+          request.onerror = (event) => {
+            // Do something with the error
+            renderError("Error: unable to update item.");
+            console.log(newItem, event);
+          };
+          request.onsuccess = (event) => {
+            // Success - the data is updated!
+            refreshItems(db);
+          };
+      }
+      function renderItems(db, items) {
+        // Clear the existing list elements.
+        const listEl = document.getElementById("list");
+        listEl.innerHTML = null;
+        // Render the refreshed list items.
+        items.forEach(item => {
+          const itemEl = document.createElement("li");
+          const checkEl = document.createElement("input");
+          const textEl = document.createElement("label");
+
+          checkEl.setAttribute("id", item.primaryKey);
+          checkEl.setAttribute("type", "checkbox");
+          if(item.checked) {
+            checkEl.setAttribute("checked", "true");
+            textEl.style.textDecoration = "line-through";
+          }
+          checkEl.addEventListener("change", event => {
+            updateItem(db, item.primaryKey, toItem(item.value, event.target.checked, item.created))
+          });
+          
+          textEl.setAttribute("for", item.primaryKey);
+          textEl.textContent = item.value;
+          textEl.setAttribute("title", `Created ${item.created.toString()}`);
+          itemEl.appendChild(checkEl);
+          itemEl.appendChild(textEl);
+          listEl.appendChild(itemEl);
+        });
+      }
+      function refreshItems(db) {
+        const items = [];
+
+        const objectStore = db
+          .transaction("items")
+          .objectStore("items");
+        objectStore.openCursor().onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (cursor) {
+            items.push({ ...cursor.value, primaryKey: cursor.primaryKey })
+            cursor.continue();
+          } else {
+            // Got all items
+            renderItems(db, items);
+          }
+        };
+      }
+      function addItem(db, item) {
+        const objectStore = db
+          .transaction("items", "readwrite")
+          .objectStore("items");
+        
+        const request = objectStore.add(item);
+        request.onsuccess = event => {
+          refreshItems(db);
+        };
+      }
+      function renderError(message) {
+        document.getElementById("status").innerHTML = message;
+      }
+      window.onload = () => {
+        // IndexedDB allows persistent storage of values in the browser.
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB
+        // Open a database.
+        const request = indexedDB.open("todo-db", 5);
+        // Handle database errors.
+        request.onerror = event => {
+          renderError("Error: unable to load saved tasks.");
+          console.log(event);
+        };
+        request.onupgradeneeded = event => {
+          const db = event.target.result;
+          const objectStore = db.createObjectStore("items", { autoIncrement: true });
+        };
+        request.onsuccess = event => {
+          const db = event.target.result;
+          refreshItems(db);
+
+          document.getElementById("new-save").addEventListener("click", (event) => {
+            const inputEl = document.getElementById("new-input");
+            const newTask = toItem(inputEl.value, false, new Date());
+            addItem(db, newTask);
+            
+            // Clear input element.
+            inputEl.value = "";
+          });
+          document.getElementById("menu-clear").addEventListener("click", (event) => {
+            const dialogEl = document.getElementById("menu-clear-dialog");
+            dialogEl.addEventListener('close', () => {
+              if(dialogEl.returnValue === "default") {
+                clearAllItems(db);
+              }
+            });
+            dialogEl.showModal();
+          });
+        };
+
+        
+      };
+    </script>
+  </body>
+</html>
