@@ -13,6 +13,13 @@
     <div id="status"></div>
     <div id="menu">
       <button id="menu-clear">Clear all tasks</button>
+      <dialog id="menu-clear-dialog">
+        <form method="dialog">
+          <p>Are you sure you want to clear all tasks?</p>
+          <button id="menu-clear-cancel" value="cancel">Cancel</button>
+          <button id="menu-clear-confirm" value="default">Confirm</button>
+        </form>
+      </dialog>
     </div>
     <ul id="list">
       
@@ -23,12 +30,14 @@
     </div>
     <script type="text/javascript">
       function toItem(value, checked, created) {
-        return {
-          value, checked, created
-        };
+        return { value, checked, created };
       }
       function clearAllItems(db) {
-        // TODO
+        const objectStore = db.transaction(["items"], "readwrite").objectStore("items");
+        const request = objectStore.clear();
+        request.onsuccess = event => {
+          refreshItems(db);
+        };
       }
       function updateItem(db, primaryKey, newItem) {
         console.log(newItem);
@@ -129,7 +138,13 @@
             inputEl.value = "";
           });
           document.getElementById("menu-clear").addEventListener("click", (event) => {
-            clearAllItems(db);
+            const dialogEl = document.getElementById("menu-clear-dialog");
+            dialogEl.addEventListener('close', () => {
+              if(dialogEl.returnValue === "default") {
+                clearAllItems(db);
+              }
+            });
+            dialogEl.showModal();
           });
         };
 
