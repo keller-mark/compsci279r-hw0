@@ -13,3 +13,7 @@ git clone https://github.com/keller-mark/compsci279r-hw0.git
 ```
 
 Open the `index.html` file in a web browser.
+
+## Notes
+
+No specific tutorial was used, but the comments in the code contain links to documentation and websites referenced during the development.

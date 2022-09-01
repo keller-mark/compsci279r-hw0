@@ -69,7 +69,9 @@
           Use the method="dialog" so that:
           - form submission triggers the dialog's close event
           - form results are saved to the returnValue of the dialog element.
-          Reference: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dialog#examples
+          References:
+          - https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dialog#examples
+          - https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form
         -->
         <form method="dialog">
           <p>Are you sure you want to clear all tasks?</p>
@@ -80,12 +82,6 @@
     </div>
     <!-- Use the dialog element to show a confirmation popup. -->
     <dialog id="edit-dialog">
-      <!--
-        Use the method="dialog" so that:
-        - form submission triggers the dialog's close event
-        - form results are saved to the returnValue of the dialog element.
-        Reference: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/dialog#examples
-      -->
       <form method="dialog" id="edit-form">
         <p>Edit task</p>
         <input type="text" id="edit-input" />
@@ -341,6 +337,7 @@
           // Create the "items" object store (think of as a database table).
           // We are using auto-incrementing keys as the primary keys,
           // since the text value is subject to change.
+          // Reference: https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/createObjectStore
           const objectStore = db.createObjectStore("items", { autoIncrement: true });
         };
         request.onsuccess = event => {
