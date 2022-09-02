@@ -37,13 +37,15 @@
       #status {
         /* Remove the default margin of the h3 element. */
         margin: 0;
+        margin-right: 10px;
+        margin-bottom: 10px;
         /* Ensure the h3 can be side-by-side with the menu. */
         display: inline-block;
       }
       #menu {
         /* Ensure the menu can be side-by-side with the h3. */
         display: inline-block;
-        margin-left: 10px;
+        margin-top: 0px;
       }
       #list {
         /* Hide the bullets which are shown for unordered lists by default. */
@@ -52,18 +54,35 @@
         padding-left: 0;
       }
       #list > li {
-        margin-top: 5px;
+        margin-bottom: 10px;
+        font-size: 18px;
       }
-      /*
-        Show the edit/delete buttons when the parent <li> is hovered.
-        Reference: https://stackoverflow.com/a/34459870
-      */
+      #list > li > input[type="checkbox"] {
+        /*
+          Increase the size of the checkboxes.
+          Reference: https://stackoverflow.com/a/10415275
+        */
+        transform: scale(1.5);
+      }
+      #list > li > label {
+        margin-left: 10px;
+      }
       #list > li > button {
-        margin-left: 5px;
-        visibility: hidden;
+        margin-left: 10px;
       }
-      #list > li:hover > button, #list > li:active > button {
-        visibility: visible;
+      @media (hover: hover) {
+        /*
+          Show the edit/delete buttons when the parent <li> is hovered,
+          but only on devices that support hovering (e.g., do not
+          hide the buttons on touchscreen devices).
+          Reference: https://stackoverflow.com/a/34459870
+        */
+        #list > li > button {
+          visibility: hidden;
+        }
+        #list > li:hover > button {
+          visibility: visible;
+        }
       }
     </style>
   </head>
