@@ -19,6 +19,17 @@
           Reference: https://stackoverflow.com/a/32660790
         */
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        height: 100%;
+      }
+      body {
+        /* Body element should take up parent height/width. */
+        display: block;
+        /*
+          Account for padding/margin in sizing to prevent
+          extra scroll bars.
+          Reference: https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing
+        */
+        box-sizing: border-box;
         /*
           Add a background gradient.
           Reference: https://cssgradient.io/gradient-backgrounds/
@@ -27,7 +38,6 @@
         background-image: linear-gradient(0deg, #98e3d6 0%, #c0c7e7 100%);
         background-repeat: no-repeat;
         background-size: cover;
-        height: 100vh;
       }
       #title {
         /* Remove the default margin of the h1 element. */
@@ -46,6 +56,12 @@
         /* Ensure the menu can be side-by-side with the h3. */
         display: inline-block;
         margin-top: 0px;
+      }
+      input[type="text"] {
+        padding: 3px;
+      }
+      button {
+        padding: 3px;
       }
       #list {
         /* Hide the bullets which are shown for unordered lists by default. */
@@ -69,6 +85,7 @@
       }
       #list > li > button {
         margin-left: 10px;
+        padding: 2px;
       }
       @media (hover: hover) {
         /*
