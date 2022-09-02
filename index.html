@@ -1,10 +1,16 @@
 <!DOCTYPE html>
+<html>
   <!-- Submission for HW0 in COMPSCI 279R -->
   <!-- Name: Mark Keller -->
   <!-- Date: September 1, 2022 -->
   <head>
     <!-- Set the page title that is shown in the browser window/tab/history. -->
     <title>To-Do App</title>
+    <!--
+      Optimize for mobile devices.
+      Reference: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       /* Use custom CSS rules to style elements. */
       html {
@@ -13,6 +19,15 @@
           Reference: https://stackoverflow.com/a/32660790
         */
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        /*
+          Add a background gradient.
+          Reference: https://cssgradient.io/gradient-backgrounds/
+        */
+        background-color: #74EBD5;
+        background-image: linear-gradient(0deg, #98e3d6 0%, #c0c7e7 100%);
+        background-repeat: no-repeat;
+        background-size: cover;
+        height: 100vh;
       }
       #title {
         /* Remove the default margin of the h1 element. */
@@ -47,7 +62,7 @@
         margin-left: 5px;
         visibility: hidden;
       }
-      #list > li:hover > button {
+      #list > li:hover > button, #list > li:active > button {
         visibility: visible;
       }
     </style>
